@@ -41,8 +41,6 @@ public class RegistroActivity extends AppCompatActivity {
                 }
             });
 
-    // Launcher nuevo: pide el permiso de cámara al usuario.
-    // Cuando el usuario responde (aceptar o negar), se ejecuta este código.
     ActivityResultLauncher<String> permisoLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(),
             concedido -> {

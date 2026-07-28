@@ -32,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    List<Producto> productos = new ArrayList<>();
     List<String> nombres = new ArrayList<>();
     List<String> detalles = new ArrayList<>();
     ArrayAdapter<String> adapter;
@@ -46,13 +45,11 @@ public class MainActivity extends AppCompatActivity {
                     double precio = resultado.getData().getDoubleExtra("precio", 0);
 
                     Producto nuevo = new Producto(nombre, precio, cantidad);
-                    productos.add(nuevo);
-
                     nombres.add(nuevo.nombre);
                     detalles.add(String.format("Q %.2f -- %d unidades -- Total: Q %.2f",
                             nuevo.precio, nuevo.cantidad, nuevo.getTotal()));
 
-                    adapter.notifyDataSetChanged();
+                    adapter.notifyDataSetChanged(); //Mostrar los productos
                 }
             });
 
@@ -64,16 +61,6 @@ public class MainActivity extends AppCompatActivity {
         ListView lvInventario = findViewById(R.id.lvInventario);
         Button btnAgregar = findViewById(R.id.btnAgregarProducto);
 
-        productos.add(new Producto("Azucar", 5.45, 10));
-        productos.add(new Producto("Frijol", 6.75, 15));
-        productos.add(new Producto("Harina", 12.25, 6));
-
-        //simple_list_item_2
-        for (Producto p : productos) {
-            nombres.add(p.nombre);
-            detalles.add(String.format("Q %.2f -- %d unidades -- Total: Q %.2f",
-                    p.precio, p.cantidad, p.getTotal()));
-        }
 
         adapter = new ArrayAdapter<>(
                 this,
