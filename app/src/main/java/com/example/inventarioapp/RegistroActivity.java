@@ -41,8 +41,6 @@ public class RegistroActivity extends AppCompatActivity {
                 }
             });
 
-    // Launcher nuevo: pide el permiso de cámara al usuario.
-    // Cuando el usuario responde (aceptar o negar), se ejecuta este código.
     ActivityResultLauncher<String> permisoLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestPermission(),
             concedido -> {
@@ -79,12 +77,10 @@ public class RegistroActivity extends AppCompatActivity {
     }
 
     void abrirCamara() {
-        // Primero revisamos si el permiso ya fue concedido antes.
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED) {
             lanzarCamara();
         } else {
-            // Si no, se lo pedimos al usuario. El resultado lo maneja permisoLauncher de arriba.
             permisoLauncher.launch(android.Manifest.permission.CAMERA);
         }
     }
@@ -125,6 +121,7 @@ public class RegistroActivity extends AppCompatActivity {
         resultado.putExtra("nombre", nombre);
         resultado.putExtra("cantidad", cantidad);
         resultado.putExtra("precio", precio);
+        resultado.putExtra("fotoUri", fotoUri != null ? fotoUri.toString() : null); //Operador ternario
 
         setResult(RESULT_OK, resultado);
         finish();

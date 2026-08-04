@@ -10,21 +10,24 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class MainActivity extends AppCompatActivity {
 
-    static class Producto {
+    static class Producto implements Serializable {
         String nombre;
         double precio;
         int cantidad;
+        String fotoUri;
 
-        Producto(String nombre, double precio, int cantidad) {
+        Producto(String nombre, double precio, int cantidad, String fotoUri) {
             this.nombre = nombre;
             this.precio = precio;
             this.cantidad = cantidad;
+            this.fotoUri = fotoUri;
         }
 
         double getTotal() {
@@ -44,8 +47,9 @@ public class MainActivity extends AppCompatActivity {
                     String nombre = resultado.getData().getStringExtra("nombre");
                     int cantidad = resultado.getData().getIntExtra("cantidad", 0);
                     double precio = resultado.getData().getDoubleExtra("precio", 0);
+                    String fotoUri = resultado.getData().getStringExtra("fotoUri");
 
-                    Producto nuevo = new Producto(nombre, precio, cantidad);
+                    Producto nuevo = new Producto(nombre, precio, cantidad, fotoUri);
                     productos.add(nuevo);
 
                     nombres.add(nuevo.nombre);
@@ -63,10 +67,6 @@ public class MainActivity extends AppCompatActivity {
 
         ListView lvInventario = findViewById(R.id.lvInventario);
         Button btnAgregar = findViewById(R.id.btnAgregarProducto);
-
-        productos.add(new Producto("Azucar", 5.45, 10));
-        productos.add(new Producto("Frijol", 6.75, 15));
-        productos.add(new Producto("Harina", 12.25, 6));
 
         //simple_list_item_2
         for (Producto p : productos) {
@@ -96,6 +96,13 @@ public class MainActivity extends AppCompatActivity {
         btnAgregar.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, RegistroActivity.class);
             registroLauncher.launch(intent);
+        });
+
+        lvInventario.setOnItemClickListener((parent, view, position, id) -> {
+            Producto productoSeleccionado = productos.get(position);
+            Intent intent = new Intent(MainActivity.this, DetalleActivity.class);
+            intent.putExtra("producto", productoSeleccionado);
+            startActivity(intent);
         });
 
     }
