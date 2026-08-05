@@ -3,6 +3,7 @@ package com.example.inventarioapp;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
@@ -65,6 +66,34 @@ public class RegistroActivity extends AppCompatActivity {
         Button btnTomarFoto = findViewById(R.id.btnTomarFoto);
         Button btnGuardar = findViewById(R.id.btnGuardar);
         Button btnCancelar = findViewById(R.id.btnCancelar);
+
+
+        //
+        TextView tvTituloFormulario = findViewById(R.id.tvTituloFormulario);
+
+        MainActivity.Producto productoExistente;
+        if (Build.VERSION.SDK_INT >= 33) {
+            productoExistente = getIntent().getSerializableExtra("producto", MainActivity.Producto.class);
+        } else {
+            productoExistente = (MainActivity.Producto) getIntent().getSerializableExtra("producto");
+        }
+
+        if (productoExistente != null) {
+            tvTituloFormulario.setText("Editar producto");
+            btnGuardar.setText("Actualizar producto");
+
+            etNombre.setText(productoExistente.nombre);
+            etCantidad.setText(String.valueOf(productoExistente.cantidad));
+            etPrecio.setText(String.valueOf(productoExistente.precio));
+
+            if (productoExistente.fotoUri != null) {
+                fotoUri = Uri.parse(productoExistente.fotoUri);
+                ivFoto.setVisibility(android.view.View.VISIBLE);
+                ivFoto.setImageURI(fotoUri);
+                tvEstadoFoto.setText("Foto actual");
+            }
+        }
+
 
         btnTomarFoto.setOnClickListener(v -> abrirCamara());
 

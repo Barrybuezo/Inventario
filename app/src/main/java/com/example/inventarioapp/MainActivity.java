@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -51,14 +52,45 @@ public class MainActivity extends AppCompatActivity {
 
                     Producto nuevo = new Producto(nombre, precio, cantidad, fotoUri);
                     productos.add(nuevo);
-
                     nombres.add(nuevo.nombre);
+
+
+
                     detalles.add(String.format("Q %.2f -- %d unidades -- Total: Q %.2f",
                             nuevo.precio, nuevo.cantidad, nuevo.getTotal()));
 
                     adapter.notifyDataSetChanged();
                 }
             });
+
+    ActivityResultLauncher<Intent> detalleLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            resultado -> {
+                if (resultado.getResultCode() == RESULT_OK && resultado.getData() != null) {
+                    int position = resultado.getData().getIntExtra("position", -1);
+                    boolean eliminado = resultado.getData().getBooleanExtra("eliminado", false);
+
+                    if (position == -1) return;
+
+                    if (eliminado) {
+                        productos.remove(position);
+                        nombres.remove(position);
+                        detalles.remove(position);
+                    } else {
+                        Producto actualizado = (Producto) resultado.getData().getSerializableExtra("producto");
+                        productos.set(position, actualizado);
+                        nombres.set(position, actualizado.nombre);
+                        detalles.set(position, construirDetalle(actualizado));
+                    }
+
+                    adapter.notifyDataSetChanged();
+                }
+            });
+
+    String construirDetalle(Producto p) {
+        return String.format(Locale.getDefault(), "Q %.2f -- %d unidades -- Total: Q %.2f",
+                p.precio, p.cantidad, p.getTotal());
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,13 +99,6 @@ public class MainActivity extends AppCompatActivity {
 
         ListView lvInventario = findViewById(R.id.lvInventario);
         Button btnAgregar = findViewById(R.id.btnAgregarProducto);
-
-        //simple_list_item_2
-        for (Producto p : productos) {
-            nombres.add(p.nombre);
-            detalles.add(String.format("Q %.2f -- %d unidades -- Total: Q %.2f",
-                    p.precio, p.cantidad, p.getTotal()));
-        }
 
         adapter = new ArrayAdapter<>(
                 this,
@@ -84,10 +109,8 @@ public class MainActivity extends AppCompatActivity {
             public android.view.View getView(int position, android.view.View convertView,
                                              android.view.ViewGroup parent) {
                 android.view.View view = super.getView(position, convertView, parent);
-
                 android.widget.TextView text2 = view.findViewById(android.R.id.text2);
                 text2.setText(detalles.get(position));
-
                 return view;
             }
         };
@@ -102,7 +125,8 @@ public class MainActivity extends AppCompatActivity {
             Producto productoSeleccionado = productos.get(position);
             Intent intent = new Intent(MainActivity.this, DetalleActivity.class);
             intent.putExtra("producto", productoSeleccionado);
-            startActivity(intent);
+            intent.putExtra("position", position);
+            detalleLauncher.launch(intent);
         });
 
     }
