@@ -6,7 +6,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -17,6 +16,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -25,7 +27,8 @@ import java.util.Locale;
 
 public class RegistroActivity extends AppCompatActivity {
 
-    EditText etNombre, etCantidad, etPrecio;
+    TextInputEditText etNombre, etCantidad, etPrecio;
+    TextInputLayout tilNombre, tilCantidad, tilPrecio;
     ImageView ivFoto;
     TextView tvEstadoFoto;
     Uri fotoUri;
@@ -60,6 +63,11 @@ public class RegistroActivity extends AppCompatActivity {
         etNombre = findViewById(R.id.etNombre);
         etCantidad = findViewById(R.id.etCantidad);
         etPrecio = findViewById(R.id.etPrecio);
+
+        tilNombre = findViewById(R.id.tilNombre);
+        tilCantidad = findViewById(R.id.tilCantidad);
+        tilPrecio = findViewById(R.id.tilPrecio);
+
         ivFoto = findViewById(R.id.ivFoto);
         tvEstadoFoto = findViewById(R.id.tvEstadoFoto);
 
@@ -133,18 +141,52 @@ public class RegistroActivity extends AppCompatActivity {
         }
     }
 
-    void guardarProducto() {
-        String nombre = etNombre.getText().toString().trim();
-        String cantidadTexto = etCantidad.getText().toString().trim();
-        String precioTexto = etPrecio.getText().toString().trim();
+    // Revisa los 3 campos y regresa true solo si TODOS están correctos.
+    // Si algo falla, marca el error en rojo bajo el campo correspondiente
+    // y NO se detiene en el primer error: revisa los 3 para mostrarlos todos de una vez.
+    boolean validarCampos() {
+        boolean esValido = true;
 
-        if (nombre.isEmpty() || cantidadTexto.isEmpty() || precioTexto.isEmpty()) {
-            Toast.makeText(this, "Completa todos los campos", Toast.LENGTH_SHORT).show();
+        tilNombre.setError(null);
+        tilCantidad.setError(null);
+        tilPrecio.setError(null);
+
+        String nombre = etNombre.getText() != null ? etNombre.getText().toString().trim() : "";
+        String cantidadTexto = etCantidad.getText() != null ? etCantidad.getText().toString().trim() : "";
+        String precioTexto = etPrecio.getText() != null ? etPrecio.getText().toString().trim() : "";
+
+        if (nombre.isEmpty()) {
+            tilNombre.setError("Ingresa el nombre del producto");
+            esValido = false;
+        }
+
+        if (cantidadTexto.isEmpty()) {
+            tilCantidad.setError("Ingresa la cantidad");
+            esValido = false;
+        } else if (Integer.parseInt(cantidadTexto) < 0) {
+            tilCantidad.setError("La cantidad no puede ser negativa");
+            esValido = false;
+        }
+
+        if (precioTexto.isEmpty()) {
+            tilPrecio.setError("Ingresa el precio");
+            esValido = false;
+        } else if (Double.parseDouble(precioTexto) <= 0) {
+            tilPrecio.setError("El precio debe ser mayor que 0");
+            esValido = false;
+        }
+
+        return esValido;
+    }
+
+    void guardarProducto() {
+        if (!validarCampos()) {
             return;
         }
 
-        int cantidad = Integer.parseInt(cantidadTexto);
-        double precio = Double.parseDouble(precioTexto);
+        String nombre = etNombre.getText().toString().trim();
+        int cantidad = Integer.parseInt(etCantidad.getText().toString().trim());
+        double precio = Double.parseDouble(etPrecio.getText().toString().trim());
 
         Intent resultado = new Intent();
         resultado.putExtra("nombre", nombre);

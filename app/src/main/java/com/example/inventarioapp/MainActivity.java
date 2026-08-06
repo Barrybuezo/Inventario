@@ -2,8 +2,11 @@ package com.example.inventarioapp;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -36,10 +39,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // "productos" es la lista COMPLETA, la fuente real de datos.
     List<Producto> productos = new ArrayList<>();
+
+    // "productosFiltrados" es lo que se está mostrando en pantalla AHORA MISMO.
+    // Si no hay texto en el buscador, es una copia exacta de "productos".
+    List<Producto> productosFiltrados = new ArrayList<>();
+
     List<String> nombres = new ArrayList<>();
     List<String> detalles = new ArrayList<>();
     ArrayAdapter<String> adapter;
+
+    String textoBusqueda = "";
 
     ActivityResultLauncher<Intent> registroLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -52,14 +63,8 @@ public class MainActivity extends AppCompatActivity {
 
                     Producto nuevo = new Producto(nombre, precio, cantidad, fotoUri);
                     productos.add(nuevo);
-                    nombres.add(nuevo.nombre);
 
-
-
-                    detalles.add(String.format("Q %.2f -- %d unidades -- Total: Q %.2f",
-                            nuevo.precio, nuevo.cantidad, nuevo.getTotal()));
-
-                    adapter.notifyDataSetChanged();
+                    aplicarFiltro();
                 }
             });
 
@@ -74,22 +79,38 @@ public class MainActivity extends AppCompatActivity {
 
                     if (eliminado) {
                         productos.remove(position);
-                        nombres.remove(position);
-                        detalles.remove(position);
                     } else {
                         Producto actualizado = (Producto) resultado.getData().getSerializableExtra("producto");
                         productos.set(position, actualizado);
-                        nombres.set(position, actualizado.nombre);
-                        detalles.set(position, construirDetalle(actualizado));
                     }
 
-                    adapter.notifyDataSetChanged();
+                    aplicarFiltro();
                 }
             });
 
     String construirDetalle(Producto p) {
         return String.format(Locale.getDefault(), "Q %.2f -- %d unidades -- Total: Q %.2f",
                 p.precio, p.cantidad, p.getTotal());
+    }
+
+    // Reconstruye "productosFiltrados", "nombres" y "detalles" según lo que haya
+    // escrito en el buscador, y refresca la ListView.
+    void aplicarFiltro() {
+        productosFiltrados.clear();
+        nombres.clear();
+        detalles.clear();
+
+        for (Producto p : productos) {
+            if (textoBusqueda.isEmpty() ||
+                    p.nombre.toLowerCase(Locale.getDefault())
+                            .contains(textoBusqueda.toLowerCase(Locale.getDefault()))) {
+                productosFiltrados.add(p);
+                nombres.add(p.nombre);
+                detalles.add(construirDetalle(p));
+            }
+        }
+
+        adapter.notifyDataSetChanged();
     }
 
     @Override
@@ -99,6 +120,7 @@ public class MainActivity extends AppCompatActivity {
 
         ListView lvInventario = findViewById(R.id.lvInventario);
         Button btnAgregar = findViewById(R.id.btnAgregarProducto);
+        EditText etBuscar = findViewById(R.id.etBuscar);
 
         adapter = new ArrayAdapter<>(
                 this,
@@ -116,18 +138,38 @@ public class MainActivity extends AppCompatActivity {
         };
 
         lvInventario.setAdapter(adapter);
+
         btnAgregar.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, RegistroActivity.class);
             registroLauncher.launch(intent);
         });
 
         lvInventario.setOnItemClickListener((parent, view, position, id) -> {
-            Producto productoSeleccionado = productos.get(position);
+            // "position" aquí es la fila dentro de la lista FILTRADA (lo que se ve).
+            Producto productoSeleccionado = productosFiltrados.get(position);
+
+            // Hay que traducirlo a su posición real dentro de "productos" (la lista completa),
+            // porque es esa posición la que DetalleActivity necesita para editar/eliminar bien.
+            int positionReal = productos.indexOf(productoSeleccionado);
+
             Intent intent = new Intent(MainActivity.this, DetalleActivity.class);
             intent.putExtra("producto", productoSeleccionado);
-            intent.putExtra("position", position);
+            intent.putExtra("position", positionReal);
             detalleLauncher.launch(intent);
         });
 
+        etBuscar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                textoBusqueda = s.toString();
+                aplicarFiltro();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
     }
 }
