@@ -5,22 +5,28 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.widget.Button;
+import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -32,16 +38,17 @@ public class RegistroActivity extends AppCompatActivity {
     ImageView ivFoto;
     TextView tvEstadoFoto;
     Uri fotoUri;
+    View root;
 
     ActivityResultLauncher<Uri> cameraLauncher = registerForActivityResult(
             new ActivityResultContracts.TakePicture(),
             exito -> {
                 if (exito) {
-                    ivFoto.setVisibility(android.view.View.VISIBLE);
+                    ivFoto.setVisibility(View.VISIBLE);
                     ivFoto.setImageURI(fotoUri);
                     tvEstadoFoto.setText("Foto tomada");
                 } else {
-                    Toast.makeText(this, "No se tomó la foto", Toast.LENGTH_SHORT).show();
+                    Snackbar.make(root, "No se tomó la foto", Snackbar.LENGTH_SHORT).show();
                 }
             });
 
@@ -51,7 +58,21 @@ public class RegistroActivity extends AppCompatActivity {
                 if (concedido) {
                     lanzarCamara();
                 } else {
-                    Toast.makeText(this, "Se necesita el permiso de cámara para tomar la foto", Toast.LENGTH_SHORT).show();
+                    Snackbar.make(root, "Se necesita el permiso de cámara para tomar la foto", Snackbar.LENGTH_SHORT).show();
+                }
+            });
+
+    // La Uri que entrega el Photo Picker es "temporal": el permiso para leerla
+    // se puede perder cuando la app se cierra. Por eso, en vez de guardar esa Uri
+    // directo, copiamos el archivo a la carpeta propia de la app (igual que la cámara),
+    // así queda un archivo permanente que sí sobrevive entre aperturas de la app.
+    ActivityResultLauncher<PickVisualMediaRequest> galleryLauncher = registerForActivityResult(
+            new ActivityResultContracts.PickVisualMedia(),
+            uri -> {
+                if (uri != null) {
+                    copiarImagenGaleria(uri);
+                } else {
+                    Snackbar.make(root, "No se seleccionó ninguna imagen", Snackbar.LENGTH_SHORT).show();
                 }
             });
 
@@ -59,6 +80,14 @@ public class RegistroActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_registro);
+
+        root = findViewById(R.id.rootRegistro);
+
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> {
+            setResult(RESULT_CANCELED);
+            finish();
+        });
 
         etNombre = findViewById(R.id.etNombre);
         etCantidad = findViewById(R.id.etCantidad);
@@ -71,12 +100,11 @@ public class RegistroActivity extends AppCompatActivity {
         ivFoto = findViewById(R.id.ivFoto);
         tvEstadoFoto = findViewById(R.id.tvEstadoFoto);
 
-        Button btnTomarFoto = findViewById(R.id.btnTomarFoto);
-        Button btnGuardar = findViewById(R.id.btnGuardar);
-        Button btnCancelar = findViewById(R.id.btnCancelar);
+        MaterialButton btnTomarFoto = findViewById(R.id.btnTomarFoto);
+        MaterialButton btnElegirGaleria = findViewById(R.id.btnElegirGaleria);
+        MaterialButton btnGuardar = findViewById(R.id.btnGuardar);
+        MaterialButton btnCancelar = findViewById(R.id.btnCancelar);
 
-
-        //
         TextView tvTituloFormulario = findViewById(R.id.tvTituloFormulario);
 
         MainActivity.Producto productoExistente;
@@ -87,6 +115,7 @@ public class RegistroActivity extends AppCompatActivity {
         }
 
         if (productoExistente != null) {
+            toolbar.setTitle("Editar producto");
             tvTituloFormulario.setText("Editar producto");
             btnGuardar.setText("Actualizar producto");
 
@@ -96,14 +125,20 @@ public class RegistroActivity extends AppCompatActivity {
 
             if (productoExistente.fotoUri != null) {
                 fotoUri = Uri.parse(productoExistente.fotoUri);
-                ivFoto.setVisibility(android.view.View.VISIBLE);
+                ivFoto.setVisibility(View.VISIBLE);
                 ivFoto.setImageURI(fotoUri);
                 tvEstadoFoto.setText("Foto actual");
             }
+        } else {
+            toolbar.setTitle("Nuevo producto");
         }
 
-
         btnTomarFoto.setOnClickListener(v -> abrirCamara());
+
+        btnElegirGaleria.setOnClickListener(v -> galleryLauncher.launch(
+                new PickVisualMediaRequest.Builder()
+                        .setMediaType(ActivityResultContracts.PickVisualMedia.ImageOnly.INSTANCE)
+                        .build()));
 
         btnGuardar.setOnClickListener(v -> guardarProducto());
 
@@ -137,13 +172,45 @@ public class RegistroActivity extends AppCompatActivity {
             cameraLauncher.launch(fotoUri);
 
         } catch (IOException e) {
-            Toast.makeText(this, "Error al crear el archivo de la foto", Toast.LENGTH_SHORT).show();
+            Snackbar.make(root, "Error al crear el archivo de la foto", Snackbar.LENGTH_SHORT).show();
         }
     }
 
-    // Revisa los 3 campos y regresa true solo si TODOS están correctos.
-    // Si algo falla, marca el error en rojo bajo el campo correspondiente
-    // y NO se detiene en el primer error: revisa los 3 para mostrarlos todos de una vez.
+    // Copia byte por byte la imagen elegida en la galería hacia un archivo nuevo
+    // dentro de la carpeta propia de la app, y usa ESE archivo de ahí en adelante.
+    void copiarImagenGaleria(Uri origenUri) {
+        try {
+            String nombreArchivo = "galeria_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                    .format(new Date()) + ".jpg";
+            File carpeta = getExternalFilesDir("Pictures");
+            File archivoDestino = new File(carpeta, nombreArchivo);
+
+            InputStream entrada = getContentResolver().openInputStream(origenUri);
+            OutputStream salida = new FileOutputStream(archivoDestino);
+
+            byte[] buffer = new byte[4096];
+            int bytesLeidos;
+            while ((bytesLeidos = entrada.read(buffer)) != -1) {
+                salida.write(buffer, 0, bytesLeidos);
+            }
+
+            entrada.close();
+            salida.close();
+
+            fotoUri = FileProvider.getUriForFile(
+                    this,
+                    "com.example.inventarioapp.fileprovider",
+                    archivoDestino);
+
+            ivFoto.setVisibility(View.VISIBLE);
+            ivFoto.setImageURI(fotoUri);
+            tvEstadoFoto.setText("Foto seleccionada de galería");
+
+        } catch (IOException e) {
+            Snackbar.make(root, "Error al copiar la imagen", Snackbar.LENGTH_SHORT).show();
+        }
+    }
+
     boolean validarCampos() {
         boolean esValido = true;
 
@@ -192,7 +259,7 @@ public class RegistroActivity extends AppCompatActivity {
         resultado.putExtra("nombre", nombre);
         resultado.putExtra("cantidad", cantidad);
         resultado.putExtra("precio", precio);
-        resultado.putExtra("fotoUri", fotoUri != null ? fotoUri.toString() : null); //Operador ternario
+        resultado.putExtra("fotoUri", fotoUri != null ? fotoUri.toString() : null);
 
         setResult(RESULT_OK, resultado);
         finish();

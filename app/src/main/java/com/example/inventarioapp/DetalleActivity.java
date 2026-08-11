@@ -1,19 +1,20 @@
 package com.example.inventarioapp;
 
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Locale;
 
@@ -44,31 +45,26 @@ public class DetalleActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_detalle);
 
-        // Ya NO se vuelve a declarar el tipo aquí (ImageView / TextView / etc.),
-        // así se asignan a las variables de la CLASE, no a unas nuevas locales.
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
+
         ivFotoDetalle = findViewById(R.id.ivFotoDetalle);
         tvNombreDetalle = findViewById(R.id.tvNombreDetalle);
         tvCantidadDetalle = findViewById(R.id.tvCantidadDetalle);
         tvPrecioDetalle = findViewById(R.id.tvPrecioDetalle);
         tvTotalDetalle = findViewById(R.id.tvTotalDetalle);
-        Button btnEditarDetalle = findViewById(R.id.btnEditarDetalle);
-        Button btnEliminarDetalle = findViewById(R.id.btnEliminarDetalle);
+        MaterialButton btnEditarDetalle = findViewById(R.id.btnEditarDetalle);
+        MaterialButton btnEliminarDetalle = findViewById(R.id.btnEliminarDetalle);
 
-        //Validar la versión de Android del celular
         if (Build.VERSION.SDK_INT >= 33) {
-            //Usar la nueva versión del Método
             producto = getIntent().getSerializableExtra("producto", MainActivity.Producto.class);
         } else {
-            //Usar el método clásico
             producto = (MainActivity.Producto) getIntent().getSerializableExtra("producto");
-            //MainActivity.Producto fuerza a Java a interpretar ese paquete como un Producto
         }
         position = getIntent().getIntExtra("position", -1);
 
-        //En lugar de leer variables inexistentes se cierra la pantalla y se sale de la función
         if (producto == null || position == -1) {
             finish();
             return;
@@ -83,28 +79,23 @@ public class DetalleActivity extends AppCompatActivity {
         });
 
         btnEliminarDetalle.setOnClickListener(v -> confirmarEliminacion());
-
-
-
     }
 
 
     void mostrarDatos(){
-        //Llamar los datos para pintarlos en pantalla
         tvNombreDetalle.setText(producto.nombre);
         tvCantidadDetalle.setText(producto.cantidad + " unidades");
         tvPrecioDetalle.setText(String.format(Locale.getDefault(), "Q %.2f c/u", producto.precio));
         tvTotalDetalle.setText(String.format(Locale.getDefault(), "Total: Q %.2f", producto.getTotal()));
 
-        //Mostrar la foto
         if (producto.fotoUri != null) {
-            ivFotoDetalle.setVisibility(View.VISIBLE);//Mostrar el contenedor de la foto
-            ivFotoDetalle.setImageURI(Uri.parse(producto.fotoUri));//La dirección de la foto en texto pasa a ser Uri otra vez
+            ivFotoDetalle.setVisibility(View.VISIBLE);
+            ivFotoDetalle.setImageURI(Uri.parse(producto.fotoUri));
         }
     }
 
     void confirmarEliminacion(){
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("Eliminar producto")
                 .setMessage("¿Seguro que desea eliminar \"" + producto.nombre + "\"?")
                 .setPositiveButton("Eliminar", (dialog, which) -> {
@@ -122,6 +113,6 @@ public class DetalleActivity extends AppCompatActivity {
         Intent resultado = new Intent();
         resultado.putExtra("position", position);
         resultado.putExtra("producto", producto);
-        setResult(RESULT_OK, resultado );
+        setResult(RESULT_OK, resultado);
     }
 }
