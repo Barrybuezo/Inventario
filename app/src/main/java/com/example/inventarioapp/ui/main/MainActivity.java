@@ -1,4 +1,4 @@
-package com.example.inventarioapp;
+package com.example.inventarioapp.ui.main;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -11,11 +11,17 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.inventarioapp.R;
+import com.example.inventarioapp.data.repository.ProductoRepositoryImpl;
+import com.example.inventarioapp.domain.model.Producto;
+import com.example.inventarioapp.domain.repository.ProductoRepository;
+import com.example.inventarioapp.ui.adapter.ProductoAdapter;
+import com.example.inventarioapp.ui.detalle.DetalleActivity;
+import com.example.inventarioapp.ui.registro.RegistroActivity;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -23,29 +29,13 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
-    static class Producto implements Serializable {
-        String nombre;
-        double precio;
-        int cantidad;
-        String fotoUri;
-
-        Producto(String nombre, double precio, int cantidad, String fotoUri) {
-            this.nombre = nombre;
-            this.precio = precio;
-            this.cantidad = cantidad;
-            this.fotoUri = fotoUri;
-        }
-
-        double getTotal() {
-            return precio * cantidad;
-        }
-    }
-
     List<Producto> productos = new ArrayList<>();
     List<Producto> productosFiltrados = new ArrayList<>();
     ProductoAdapter adapter;
     String textoBusqueda = "";
     ListView lvInventario;
+
+    ProductoRepository productoRepository;
 
     ActivityResultLauncher<Intent> registroLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -55,10 +45,12 @@ public class MainActivity extends AppCompatActivity {
                     int cantidad = resultado.getData().getIntExtra("cantidad", 0);
                     double precio = resultado.getData().getDoubleExtra("precio", 0);
                     String fotoUri = resultado.getData().getStringExtra("fotoUri");
+                    String categoria = resultado.getData().getStringExtra("categoria");
+                    String descripcion = resultado.getData().getStringExtra("descripcion");
 
-                    productos.add(new Producto(nombre, precio, cantidad, fotoUri));
+                    productos.add(new Producto(nombre, precio, cantidad, fotoUri, categoria, descripcion));
                     aplicarFiltro();
-                    AlmacenProductos.guardar(this, productos); // guarda en disco
+                    productoRepository.guardar(productos);
 
                     Snackbar.make(lvInventario, "Producto agregado", Snackbar.LENGTH_SHORT).show();
                 }
@@ -77,20 +69,20 @@ public class MainActivity extends AppCompatActivity {
                         Producto productoEliminado = productos.get(position);
                         productos.remove(position);
                         aplicarFiltro();
-                        AlmacenProductos.guardar(this, productos); // guarda en disco
+                        productoRepository.guardar(productos);
 
                         Snackbar.make(lvInventario, "Producto eliminado", Snackbar.LENGTH_LONG)
                                 .setAction("Deshacer", v -> {
                                     productos.add(position, productoEliminado);
                                     aplicarFiltro();
-                                    AlmacenProductos.guardar(this, productos); // guarda en disco otra vez
+                                    productoRepository.guardar(productos);
                                 })
                                 .show();
                     } else {
                         Producto actualizado = (Producto) resultado.getData().getSerializableExtra("producto");
                         productos.set(position, actualizado);
                         aplicarFiltro();
-                        AlmacenProductos.guardar(this, productos); // guarda en disco
+                        productoRepository.guardar(productos);
 
                         Snackbar.make(lvInventario, "Producto actualizado", Snackbar.LENGTH_SHORT).show();
                     }
@@ -116,6 +108,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        productoRepository = new ProductoRepositoryImpl(this);
+
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -123,13 +117,12 @@ public class MainActivity extends AppCompatActivity {
         Button btnAgregar = findViewById(R.id.btnAgregarProducto);
         TextInputEditText etBuscar = findViewById(R.id.etBuscar);
 
-        // Carga lo que se haya guardado antes. Si es la primera vez, llega vacío.
-        productos.addAll(AlmacenProductos.cargar(this));
+        productos.addAll(productoRepository.cargar());
 
         adapter = new ProductoAdapter(this, productosFiltrados);
         lvInventario.setAdapter(adapter);
 
-        aplicarFiltro(); // pinta en pantalla lo que se acaba de cargar
+        aplicarFiltro();
 
         btnAgregar.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, RegistroActivity.class);
@@ -148,7 +141,8 @@ public class MainActivity extends AppCompatActivity {
 
         etBuscar.addTextChangedListener(new TextWatcher() {
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -157,7 +151,8 @@ public class MainActivity extends AppCompatActivity {
             }
 
             @Override
-            public void afterTextChanged(Editable s) {}
+            public void afterTextChanged(Editable s) {
+            }
         });
     }
 }

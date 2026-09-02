@@ -1,4 +1,4 @@
-package com.example.inventarioapp;
+package com.example.inventarioapp.ui.detalle;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -7,22 +7,22 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
-
+import com.example.inventarioapp.R;
+import com.example.inventarioapp.domain.model.Producto;
+import com.example.inventarioapp.ui.registro.RegistroActivity;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-
 import java.util.Locale;
 
 public class DetalleActivity extends AppCompatActivity {
 
     ImageView ivFotoDetalle;
-    TextView tvNombreDetalle, tvCantidadDetalle, tvPrecioDetalle, tvTotalDetalle;
-    MainActivity.Producto producto;
+    TextView tvNombreDetalle, tvCategoriaDetalle, tvCantidadDetalle, tvPrecioDetalle, tvTotalDetalle, tvDescripcionDetalle;
+    Producto producto;
     int position;
 
     ActivityResultLauncher<Intent> editarLauncher = registerForActivityResult(
@@ -33,8 +33,10 @@ public class DetalleActivity extends AppCompatActivity {
                     int cantidad = resultado.getData().getIntExtra("cantidad", 0);
                     double precio = resultado.getData().getDoubleExtra("precio", 0);
                     String fotoUri = resultado.getData().getStringExtra("fotoUri");
+                    String categoria = resultado.getData().getStringExtra("categoria");
+                    String descripcion = resultado.getData().getStringExtra("descripcion");
 
-                    producto = new MainActivity.Producto(nombre, precio, cantidad, fotoUri);
+                    producto = new Producto(nombre, precio, cantidad, fotoUri, categoria, descripcion);
 
                     mostrarDatos();
                     enviarResultadoActualizado();
@@ -52,16 +54,18 @@ public class DetalleActivity extends AppCompatActivity {
 
         ivFotoDetalle = findViewById(R.id.ivFotoDetalle);
         tvNombreDetalle = findViewById(R.id.tvNombreDetalle);
+        tvCategoriaDetalle = findViewById(R.id.tvCategoriaDetalle);
         tvCantidadDetalle = findViewById(R.id.tvCantidadDetalle);
         tvPrecioDetalle = findViewById(R.id.tvPrecioDetalle);
         tvTotalDetalle = findViewById(R.id.tvTotalDetalle);
+        tvDescripcionDetalle = findViewById(R.id.tvDescripcionDetalle);
         MaterialButton btnEditarDetalle = findViewById(R.id.btnEditarDetalle);
         MaterialButton btnEliminarDetalle = findViewById(R.id.btnEliminarDetalle);
 
         if (Build.VERSION.SDK_INT >= 33) {
-            producto = getIntent().getSerializableExtra("producto", MainActivity.Producto.class);
+            producto = getIntent().getSerializableExtra("producto", Producto.class);
         } else {
-            producto = (MainActivity.Producto) getIntent().getSerializableExtra("producto");
+            producto = (Producto) getIntent().getSerializableExtra("producto");
         }
         position = getIntent().getIntExtra("position", -1);
 
@@ -84,9 +88,14 @@ public class DetalleActivity extends AppCompatActivity {
 
     void mostrarDatos(){
         tvNombreDetalle.setText(producto.nombre);
+        tvCategoriaDetalle.setText(producto.categoria);
         tvCantidadDetalle.setText(producto.cantidad + " unidades");
         tvPrecioDetalle.setText(String.format(Locale.getDefault(), "Q %.2f c/u", producto.precio));
         tvTotalDetalle.setText(String.format(Locale.getDefault(), "Total: Q %.2f", producto.getTotal()));
+        tvDescripcionDetalle.setText(
+                producto.descripcion != null && !producto.descripcion.isEmpty()
+                        ? producto.descripcion
+                        : "Sin descripción");
 
         if (producto.fotoUri != null) {
             ivFotoDetalle.setVisibility(View.VISIBLE);

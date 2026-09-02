@@ -37,11 +37,26 @@
             android:layout_marginTop="16dp" />
 
         <TextView
+            android:id="@+id/tvDescripcionDetalle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:layout_marginTop="12dp" />
+
+        <TextView
             android:id="@+id/tvCantidadDetalle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="18sp"
             android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tvCategoriaDetalle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textStyle="italic"
+            android:layout_marginTop="4dp" />
 
         <TextView
             android:id="@+id/tvPrecioDetalle"

@@ -1,4 +1,4 @@
-package com.example.inventarioapp;
+package com.example.inventarioapp.ui.registro;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -6,22 +6,23 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.ImageView;
 import android.widget.TextView;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.PickVisualMediaRequest;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
-
+import com.example.inventarioapp.R;
+import com.example.inventarioapp.domain.model.Producto;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -33,8 +34,9 @@ import java.util.Locale;
 
 public class RegistroActivity extends AppCompatActivity {
 
-    TextInputEditText etNombre, etCantidad, etPrecio;
-    TextInputLayout tilNombre, tilCantidad, tilPrecio;
+    TextInputEditText etNombre, etCantidad, etPrecio, etDescripcion;
+    TextInputLayout tilNombre, tilCantidad, tilPrecio, tilCategoria;
+    AutoCompleteTextView actCategoria;
     ImageView ivFoto;
     TextView tvEstadoFoto;
     Uri fotoUri;
@@ -62,10 +64,6 @@ public class RegistroActivity extends AppCompatActivity {
                 }
             });
 
-    // La Uri que entrega el Photo Picker es "temporal": el permiso para leerla
-    // se puede perder cuando la app se cierra. Por eso, en vez de guardar esa Uri
-    // directo, copiamos el archivo a la carpeta propia de la app (igual que la cámara),
-    // así queda un archivo permanente que sí sobrevive entre aperturas de la app.
     ActivityResultLauncher<PickVisualMediaRequest> galleryLauncher = registerForActivityResult(
             new ActivityResultContracts.PickVisualMedia(),
             uri -> {
@@ -92,10 +90,18 @@ public class RegistroActivity extends AppCompatActivity {
         etNombre = findViewById(R.id.etNombre);
         etCantidad = findViewById(R.id.etCantidad);
         etPrecio = findViewById(R.id.etPrecio);
+        etDescripcion = findViewById(R.id.etDescripcion);
 
         tilNombre = findViewById(R.id.tilNombre);
         tilCantidad = findViewById(R.id.tilCantidad);
         tilPrecio = findViewById(R.id.tilPrecio);
+        tilCategoria = findViewById(R.id.tilCategoria);
+        actCategoria = findViewById(R.id.actCategoria);
+
+        // Llena el dropdown con la lista fija que está en res/values/arrays.xml.
+        ArrayAdapter<CharSequence> categoriaAdapter = ArrayAdapter.createFromResource(
+                this, R.array.categorias_producto, android.R.layout.simple_dropdown_item_1line);
+        actCategoria.setAdapter(categoriaAdapter);
 
         ivFoto = findViewById(R.id.ivFoto);
         tvEstadoFoto = findViewById(R.id.tvEstadoFoto);
@@ -107,11 +113,11 @@ public class RegistroActivity extends AppCompatActivity {
 
         TextView tvTituloFormulario = findViewById(R.id.tvTituloFormulario);
 
-        MainActivity.Producto productoExistente;
+        Producto productoExistente;
         if (Build.VERSION.SDK_INT >= 33) {
-            productoExistente = getIntent().getSerializableExtra("producto", MainActivity.Producto.class);
+            productoExistente = getIntent().getSerializableExtra("producto", Producto.class);
         } else {
-            productoExistente = (MainActivity.Producto) getIntent().getSerializableExtra("producto");
+            productoExistente = (Producto) getIntent().getSerializableExtra("producto");
         }
 
         if (productoExistente != null) {
@@ -122,6 +128,8 @@ public class RegistroActivity extends AppCompatActivity {
             etNombre.setText(productoExistente.nombre);
             etCantidad.setText(String.valueOf(productoExistente.cantidad));
             etPrecio.setText(String.valueOf(productoExistente.precio));
+            etDescripcion.setText(productoExistente.descripcion);
+            actCategoria.setText(productoExistente.categoria, false);
 
             if (productoExistente.fotoUri != null) {
                 fotoUri = Uri.parse(productoExistente.fotoUri);
@@ -176,8 +184,6 @@ public class RegistroActivity extends AppCompatActivity {
         }
     }
 
-    // Copia byte por byte la imagen elegida en la galería hacia un archivo nuevo
-    // dentro de la carpeta propia de la app, y usa ESE archivo de ahí en adelante.
     void copiarImagenGaleria(Uri origenUri) {
         try {
             String nombreArchivo = "galeria_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
@@ -217,10 +223,12 @@ public class RegistroActivity extends AppCompatActivity {
         tilNombre.setError(null);
         tilCantidad.setError(null);
         tilPrecio.setError(null);
+        tilCategoria.setError(null);
 
         String nombre = etNombre.getText() != null ? etNombre.getText().toString().trim() : "";
         String cantidadTexto = etCantidad.getText() != null ? etCantidad.getText().toString().trim() : "";
         String precioTexto = etPrecio.getText() != null ? etPrecio.getText().toString().trim() : "";
+        String categoria = actCategoria.getText() != null ? actCategoria.getText().toString().trim() : "";
 
         if (nombre.isEmpty()) {
             tilNombre.setError("Ingresa el nombre del producto");
@@ -243,6 +251,11 @@ public class RegistroActivity extends AppCompatActivity {
             esValido = false;
         }
 
+        if (categoria.isEmpty()) {
+            tilCategoria.setError("Selecciona una categoría");
+            esValido = false;
+        }
+
         return esValido;
     }
 
@@ -254,12 +267,16 @@ public class RegistroActivity extends AppCompatActivity {
         String nombre = etNombre.getText().toString().trim();
         int cantidad = Integer.parseInt(etCantidad.getText().toString().trim());
         double precio = Double.parseDouble(etPrecio.getText().toString().trim());
+        String categoria = actCategoria.getText().toString().trim();
+        String descripcion = etDescripcion.getText() != null ? etDescripcion.getText().toString().trim() : "";
 
         Intent resultado = new Intent();
         resultado.putExtra("nombre", nombre);
         resultado.putExtra("cantidad", cantidad);
         resultado.putExtra("precio", precio);
         resultado.putExtra("fotoUri", fotoUri != null ? fotoUri.toString() : null);
+        resultado.putExtra("categoria", categoria);
+        resultado.putExtra("descripcion", descripcion);
 
         setResult(RESULT_OK, resultado);
         finish();
