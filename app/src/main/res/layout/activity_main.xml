@@ -27,6 +27,14 @@
             android:textSize="16sp"
             android:layout_marginBottom="8dp"/>
 
+        <TextView
+            android:id="@+id/tvTotalGeneral"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilBuscar"
             android:layout_width="match_parent"
@@ -42,13 +50,12 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <ListView
-            android:id="@+id/lvInventario"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvInventario"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:divider="@null"
-            android:dividerHeight="0dp"/>
+            android:clipToPadding="false" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAgregarProducto"

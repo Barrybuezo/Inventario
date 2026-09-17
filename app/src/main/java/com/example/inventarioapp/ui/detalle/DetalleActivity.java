@@ -17,13 +17,18 @@ import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.util.Locale;
+import com.example.inventarioapp.data.repository.ExchangeRateRepositoryImpl;
+import com.example.inventarioapp.domain.model.TipoCambio;
+import com.example.inventarioapp.domain.repository.ExchangeRateRepository;
+import com.example.inventarioapp.domain.usecase.ObtenerTipoCambioUseCase;
 
 public class DetalleActivity extends AppCompatActivity {
 
     ImageView ivFotoDetalle;
     TextView tvNombreDetalle, tvCategoriaDetalle, tvCantidadDetalle, tvPrecioDetalle, tvTotalDetalle, tvDescripcionDetalle;
     Producto producto;
-    int position;
+    TextView tvTotalUsd, tvTotalEur;
+    ObtenerTipoCambioUseCase obtenerTipoCambioUseCase;
 
     ActivityResultLauncher<Intent> editarLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -36,7 +41,9 @@ public class DetalleActivity extends AppCompatActivity {
                     String categoria = resultado.getData().getStringExtra("categoria");
                     String descripcion = resultado.getData().getStringExtra("descripcion");
 
-                    producto = new Producto(nombre, precio, cantidad, fotoUri, categoria, descripcion);
+                    // Conservamos el mismo id: seguimos editando el MISMO registro,
+                    // no se crea uno nuevo en la base de datos.
+                    producto = new Producto(producto.id, nombre, precio, cantidad, fotoUri, categoria, descripcion);
 
                     mostrarDatos();
                     enviarResultadoActualizado();
@@ -61,20 +68,41 @@ public class DetalleActivity extends AppCompatActivity {
         tvDescripcionDetalle = findViewById(R.id.tvDescripcionDetalle);
         MaterialButton btnEditarDetalle = findViewById(R.id.btnEditarDetalle);
         MaterialButton btnEliminarDetalle = findViewById(R.id.btnEliminarDetalle);
+        tvTotalUsd = findViewById(R.id.tvTotalUsd);
+        tvTotalEur = findViewById(R.id.tvTotalEur);
 
         if (Build.VERSION.SDK_INT >= 33) {
             producto = getIntent().getSerializableExtra("producto", Producto.class);
         } else {
             producto = (Producto) getIntent().getSerializableExtra("producto");
         }
-        position = getIntent().getIntExtra("position", -1);
 
-        if (producto == null || position == -1) {
+        if (producto == null) {
             finish();
             return;
         }
 
         mostrarDatos();
+
+        ExchangeRateRepository exchangeRateRepository = new ExchangeRateRepositoryImpl();
+        obtenerTipoCambioUseCase = new ObtenerTipoCambioUseCase(exchangeRateRepository);
+
+        obtenerTipoCambioUseCase.ejecutar(new ExchangeRateRepository.TipoCambioCallback() {
+            @Override
+            public void onExito(TipoCambio tipoCambio) {
+                double totalUsd = producto.getTotal() * tipoCambio.tasaUsd;
+                double totalEur = producto.getTotal() * tipoCambio.tasaEur;
+
+                tvTotalUsd.setText(String.format(Locale.getDefault(), "≈ $ %.2f USD", totalUsd));
+                tvTotalEur.setText(String.format(Locale.getDefault(), "≈ € %.2f EUR", totalEur));
+            }
+
+            @Override
+            public void onError(String mensajeError) {
+                tvTotalUsd.setText("Tipo de cambio no disponible");
+                tvTotalEur.setText("");
+            }
+        });
 
         btnEditarDetalle.setOnClickListener(v -> {
             Intent intent = new Intent(DetalleActivity.this, RegistroActivity.class);
@@ -109,7 +137,7 @@ public class DetalleActivity extends AppCompatActivity {
                 .setMessage("¿Seguro que desea eliminar \"" + producto.nombre + "\"?")
                 .setPositiveButton("Eliminar", (dialog, which) -> {
                     Intent resultado = new Intent();
-                    resultado.putExtra("position", position);
+                    resultado.putExtra("id", producto.id);
                     resultado.putExtra("eliminado", true);
                     setResult(RESULT_OK, resultado);
                     finish();
@@ -120,7 +148,6 @@ public class DetalleActivity extends AppCompatActivity {
 
     void enviarResultadoActualizado(){
         Intent resultado = new Intent();
-        resultado.putExtra("position", position);
         resultado.putExtra("producto", producto);
         setResult(RESULT_OK, resultado);
     }

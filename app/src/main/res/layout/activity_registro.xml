@@ -12,8 +12,7 @@
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
         app:titleTextColor="@android:color/white"
-        app:navigationIcon="@drawable/ic_back"
-        android:layout_marginTop="40dp"/>
+        app:navigationIcon="@drawable/ic_back" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -32,8 +31,7 @@
                 android:text="Nuevo producto"
                 android:textSize="20sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="16dp"
-                android:layout_marginTop="20dp"/>
+                android:layout_marginBottom="16dp" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilNombre"

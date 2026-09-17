@@ -1,48 +1,102 @@
 package com.example.inventarioapp.data.repository;
 
+import android.content.ContentValues;
 import android.content.Context;
-import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import com.example.inventarioapp.data.local.AppDbHelper;
 import com.example.inventarioapp.domain.model.Producto;
 import com.example.inventarioapp.domain.repository.ProductoRepository;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ProductoRepositoryImpl implements ProductoRepository {
 
-    private static final String PREFS_NOMBRE = "InventarioPrefs";
-    private static final String CLAVE_PRODUCTOS = "productos_json";
-
-    private final Context context;
+    private final AppDbHelper dbHelper;
 
     public ProductoRepositoryImpl(Context context) {
-        this.context = context;
+        this.dbHelper = new AppDbHelper(context);
     }
 
     @Override
-    public void guardar(List<Producto> productos) {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NOMBRE, Context.MODE_PRIVATE);
-        Gson gson = new Gson();
-        String json = gson.toJson(productos);
-        prefs.edit().putString(CLAVE_PRODUCTOS, json).apply();
+    public long insertar(Producto producto) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        ContentValues valores = construirValores(producto);
+
+        long idGenerado = db.insert(AppDbHelper.TABLE_PRODUCTOS, null, valores);
+        db.close();
+        return idGenerado;
     }
 
     @Override
-    public List<Producto> cargar() {
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NOMBRE, Context.MODE_PRIVATE);
-        Gson gson = new Gson();
-        String json = prefs.getString(CLAVE_PRODUCTOS, null);
+    public List<Producto> obtenerTodos() {
+        List<Producto> lista = new ArrayList<>();
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
 
-        if (json == null) {
-            return new ArrayList<>();
+        // query(tabla, columnas, where, argsWhere, groupBy, having, orderBy)
+        // null en columnas = "trae todas las columnas". Ordenamos por nombre.
+        Cursor cursor = db.query(AppDbHelper.TABLE_PRODUCTOS, null,
+                null, null, null, null, AppDbHelper.COLUMN_NOMBRE + " ASC");
+
+        while (cursor.moveToNext()) {
+            lista.add(construirProductoDesdeCursor(cursor));
         }
 
-        Type tipoLista = new TypeToken<ArrayList<Producto>>() {
-        }.getType();
-        List<Producto> productos = gson.fromJson(json, tipoLista);
+        cursor.close();
+        db.close();
+        return lista;
+    }
 
-        return productos != null ? productos : new ArrayList<>();
+    @Override
+    public boolean actualizar(Producto producto) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        ContentValues valores = construirValores(producto);
+
+        int filasAfectadas = db.update(
+                AppDbHelper.TABLE_PRODUCTOS,
+                valores,
+                AppDbHelper.COLUMN_ID + " = ?",
+                new String[]{String.valueOf(producto.id)});
+
+        db.close();
+        return filasAfectadas > 0;
+    }
+
+    @Override
+    public boolean eliminar(long id) {
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+        int filasAfectadas = db.delete(
+                AppDbHelper.TABLE_PRODUCTOS,
+                AppDbHelper.COLUMN_ID + " = ?",
+                new String[]{String.valueOf(id)});
+
+        db.close();
+        return filasAfectadas > 0;
+    }
+
+    // Convierte un objeto Producto en el formato "columna -> valor" que SQLite espera.
+    private ContentValues construirValores(Producto producto) {
+        ContentValues valores = new ContentValues();
+        valores.put(AppDbHelper.COLUMN_NOMBRE, producto.nombre);
+        valores.put(AppDbHelper.COLUMN_PRECIO, producto.precio);
+        valores.put(AppDbHelper.COLUMN_CANTIDAD, producto.cantidad);
+        valores.put(AppDbHelper.COLUMN_FOTO_URI, producto.fotoUri);
+        valores.put(AppDbHelper.COLUMN_CATEGORIA, producto.categoria);
+        valores.put(AppDbHelper.COLUMN_DESCRIPCION, producto.descripcion);
+        return valores;
+    }
+
+    // Lee una fila actual del cursor y la convierte de vuelta a un objeto Producto.
+    private Producto construirProductoDesdeCursor(Cursor cursor) {
+        long id = cursor.getLong(cursor.getColumnIndexOrThrow(AppDbHelper.COLUMN_ID));
+        String nombre = cursor.getString(cursor.getColumnIndexOrThrow(AppDbHelper.COLUMN_NOMBRE));
+        double precio = cursor.getDouble(cursor.getColumnIndexOrThrow(AppDbHelper.COLUMN_PRECIO));
+        int cantidad = cursor.getInt(cursor.getColumnIndexOrThrow(AppDbHelper.COLUMN_CANTIDAD));
+        String fotoUri = cursor.getString(cursor.getColumnIndexOrThrow(AppDbHelper.COLUMN_FOTO_URI));
+        String categoria = cursor.getString(cursor.getColumnIndexOrThrow(AppDbHelper.COLUMN_CATEGORIA));
+        String descripcion = cursor.getString(cursor.getColumnIndexOrThrow(AppDbHelper.COLUMN_DESCRIPCION));
+
+        return new Producto(id, nombre, precio, cantidad, fotoUri, categoria, descripcion);
     }
 }
